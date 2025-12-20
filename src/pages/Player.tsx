@@ -331,7 +331,14 @@ const Player = () => {
         ref={videoRef}
         src={getVideoSource()}
         className="w-full h-full object-contain bg-background"
-        onTimeUpdate={handleTimeUpdate}
+        onTimeUpdate={() => {
+          handleTimeUpdate();
+          // If video is playing and time is updating, it's not buffering
+          if (isBuffering || isLoading) {
+            setIsBuffering(false);
+            setIsLoading(false);
+          }
+        }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onWaiting={() => setIsBuffering(true)}
@@ -339,7 +346,14 @@ const Player = () => {
           setIsBuffering(false);
           setIsLoading(false);
         }}
-        onCanPlay={() => setIsLoading(false)}
+        onCanPlay={() => {
+          setIsLoading(false);
+          setIsBuffering(false);
+        }}
+        onCanPlayThrough={() => {
+          setIsLoading(false);
+          setIsBuffering(false);
+        }}
         onLoadStart={() => setIsLoading(true)}
         onEnded={() => {
           // Remove from continue watching if completed
@@ -358,7 +372,7 @@ const Player = () => {
       />
 
       {/* Loading/Buffering Overlay */}
-      {(isLoading || isBuffering) && (
+      {(isLoading || isBuffering) && !isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 pointer-events-none z-10">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-16 h-16 text-primary animate-spin" />
