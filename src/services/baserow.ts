@@ -288,7 +288,7 @@ export const contentApi = {
   },
 
   async incrementViews(id: number, currentViews: number): Promise<void> {
-    const newViews = currentViews + 1;
+    const newViews = (Number(currentViews) || 0) + 1;
     await updateRow(TABLES.CONTENTS, id, { Views: newViews });
   },
   
@@ -398,7 +398,7 @@ export const episodeApi = {
   },
   
   async incrementViews(id: number, currentViews: number): Promise<void> {
-    await updateRow(TABLES.EPISODES, id, { Views: currentViews + 1 });
+    await updateRow(TABLES.EPISODES, id, { Views: newViews });
   },
 };
 
