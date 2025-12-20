@@ -454,7 +454,16 @@ const Home = () => {
             </span>
             <span className="text-muted-foreground">|</span>
             <span className="text-muted-foreground">
-              Assinatura: <span className="text-primary font-medium">{user?.Restam}</span>
+              Assinatura: <span className="text-primary font-medium">
+                {(() => {
+                  if (!user?.Restam || !user?.Dias) return "N/A";
+                  const match = user.Restam.match(/(\d+)/);
+                  if (!match) return "N/A";
+                  const restamValue = parseInt(match[1], 10);
+                  const diasRestantes = user.Dias - restamValue;
+                  return `${diasRestantes > 0 ? diasRestantes : 0} dias restantes`;
+                })()}
+              </span>
             </span>
           </div>
         </div>

@@ -94,23 +94,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkSubscription = (): boolean => {
     if (!user) return false;
     
-    // Parse "Restam" field to extract the number of remaining days
     const restam = user.Restam;
     const dias = user.Dias;
     
     if (!restam || !dias) return false;
     
-    // Extract number from "Restam" (e.g., "15d 3:45:00" -> 15, or "15 dias" -> 15)
-    const dayMatch = restam.match(/(-?\d+)/);
+    // Extract number from "Restam" (e.g., "233 days 16:44:17" -> 233)
+    const dayMatch = restam.match(/(\d+)/);
     if (!dayMatch) return false;
     
     const restamValue = parseInt(dayMatch[1], 10);
     
-    // If Restam - Dias <= Dias, login is active
-    // This means: Restam <= 2 * Dias
-    const isActive = (restamValue - dias) <= dias;
+    // Dias - Restam = Dias restantes
+    // Se Dias restantes > 0, login ativo
+    const diasRestantes = dias - restamValue;
     
-    return isActive;
+    return diasRestantes > 0;
   };
 
   const checkDeviceConnected = (): boolean => {

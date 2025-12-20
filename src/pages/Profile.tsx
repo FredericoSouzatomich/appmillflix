@@ -77,18 +77,19 @@ const Profile = () => {
   const calcularDiasRestantes = (): number => {
     if (!user?.Restam || !user?.Dias) return 0;
     
-    // Extract number from Restam field (e.g., "30d 12:00:00" -> 30, or just "30" -> 30)
+    // Extract number from Restam field (e.g., "233 days 16:44:17" -> 233)
     const match = user.Restam.match(/(\d+)/);
     if (!match) return 0;
     
     const restamValue = parseInt(match[1], 10);
-    const diasRestantes = restamValue - user.Dias;
+    // Dias - Restam = Dias restantes
+    const diasRestantes = user.Dias - restamValue;
     
     return diasRestantes > 0 ? diasRestantes : 0;
   };
 
   const parseTimeFromRestam = (restam: string): string => {
-    // Extract time portion if exists (e.g., "30d 12:34:56" -> "12:34:56")
+    // Extract time portion if exists (e.g., "233 days 12:34:56" -> "12:34:56")
     const timeMatch = restam.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
     return timeMatch ? timeMatch[1] : "";
   };
