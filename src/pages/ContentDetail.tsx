@@ -113,15 +113,18 @@ const ContentDetail = () => {
         {/* Content Info */}
         <div className="absolute bottom-0 left-0 right-0 p-8">
           <div className="container mx-auto max-w-4xl">
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-4">
               <span className="px-3 py-1 text-sm font-medium bg-primary/20 text-primary rounded-full">
                 {content.Tipo}
               </span>
-              {content.Categoria && (
-                <span className="px-3 py-1 text-sm font-medium bg-secondary text-secondary-foreground rounded-full">
-                  {content.Categoria}
+              {content.Categoria && content.Categoria.split(",").map((cat) => cat.trim()).filter(Boolean).map((category, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 text-sm font-medium bg-secondary text-secondary-foreground rounded-full"
+                >
+                  {category}
                 </span>
-              )}
+              ))}
               {content.Idioma && (
                 <span className="px-3 py-1 text-sm font-medium bg-secondary text-secondary-foreground rounded-full">
                   {content.Idioma}
