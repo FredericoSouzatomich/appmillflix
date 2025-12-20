@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Content, contentApi } from "@/services/baserow";
 import { Button } from "@/components/ui/button";
 import ContentCard from "@/components/ContentCard";
+import { useDragScroll } from "@/hooks/useDragScroll";
 import { ArrowLeft, Clock, TrendingUp, Grid, Loader2, Film, Tv, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 
 type SortOption = "-Data" | "-Views";
@@ -13,6 +14,7 @@ const ITEMS_PER_PAGE = 24;
 const Browse = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { ref: categoryScrollRef, handlers: categoryScrollHandlers, isDragging } = useDragScroll<HTMLDivElement>();
   
   const sortParam = searchParams.get("sort") || "-Data";
   const categoryParam = searchParams.get("category") || "";
@@ -235,11 +237,15 @@ const Browse = () => {
           {/* Category Buttons with horizontal scroll */}
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-sm shrink-0">Categoria:</span>
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+            <div 
+              ref={categoryScrollRef}
+              {...categoryScrollHandlers}
+              className={`flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+            >
               <Button
                 variant={!selectedCategory ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleCategoryChange("")}
+                onClick={() => !isDragging && handleCategoryChange("")}
                 className="tv-focus shrink-0"
               >
                 Todas
@@ -249,7 +255,7 @@ const Browse = () => {
                   key={category}
                   variant={selectedCategory === category ? "default" : "outline"}
                   size="sm"
-                  onClick={() => handleCategoryChange(category)}
+                  onClick={() => !isDragging && handleCategoryChange(category)}
                   className="tv-focus shrink-0"
                 >
                   {category}
