@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Banner, Content, bannerApi, contentApi } from "@/services/baserow";
+import { Banner, Content, bannerApi, contentApi, categoryApi, Category } from "@/services/baserow";
 import { playbackStorage, PlaybackProgress } from "@/services/playbackStorage";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Search, Tv2, Clock, TrendingUp, Heart, PlayCircle, User } from "lucide-react";
+import { 
+  ChevronRight, Search, Tv2, Clock, TrendingUp, Heart, PlayCircle, User,
+  Sword, Drama, Laugh, Ghost, Heart as HeartIcon, Rocket, Users, Sparkles, Film
+} from "lucide-react";
 import ContentCard from "@/components/ContentCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
+import CategoryCard from "@/components/CategoryCard";
+import NotificationBell from "@/components/NotificationBell";
 
 const Home = () => {
   const { user, logout, checkSubscription, checkDeviceConnected } = useAuth();
@@ -17,6 +22,7 @@ const Home = () => {
   const [popularContent, setPopularContent] = useState<Content[]>([]);
   const [favorites, setFavorites] = useState<Content[]>([]);
   const [continueWatching, setContinueWatching] = useState<PlaybackProgress[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,16 +55,18 @@ const Home = () => {
       const continueData = playbackStorage.getContinueWatching();
       setContinueWatching(continueData);
       
-      const [bannersData, recentData, popularData, favoritesData] = await Promise.all([
+      const [bannersData, recentData, popularData, favoritesData, categoriesData] = await Promise.all([
         bannerApi.getAll(),
         contentApi.getRecent(10),
         contentApi.getMostWatched(10),
         user?.Email ? contentApi.getFavorites(user.Email) : Promise.resolve([]),
+        categoryApi.getAll(),
       ]);
       setBanners(bannersData);
       setRecentContent(recentData);
       setPopularContent(popularData);
       setFavorites(favoritesData.slice(0, 10));
+      setCategories(categoriesData);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -76,6 +84,41 @@ const Home = () => {
 
   const handleContentClick = (content: Content) => {
     navigate(`/content/${content.id}`);
+  };
+
+  const handleCategoryClick = (category: string) => {
+    navigate(`/browse?category=${encodeURIComponent(category)}`);
+  };
+
+  const getCategoryIcon = (name: string) => {
+    const iconMap: Record<string, typeof Sword> = {
+      "Ação": Sword,
+      "Drama": Drama,
+      "Comédia": Laugh,
+      "Terror": Ghost,
+      "Romance": HeartIcon,
+      "Ficção Científica": Rocket,
+      "Família": Users,
+      "Animação": Sparkles,
+      "Aventura": Rocket,
+      "Suspense": Ghost,
+      "Documentário": Film,
+    };
+    return iconMap[name] || Film;
+  };
+
+  const getCategoryGradient = (index: number) => {
+    const gradients = [
+      "bg-gradient-to-br from-red-500/80 to-orange-600/80",
+      "bg-gradient-to-br from-blue-500/80 to-purple-600/80",
+      "bg-gradient-to-br from-green-500/80 to-teal-600/80",
+      "bg-gradient-to-br from-pink-500/80 to-rose-600/80",
+      "bg-gradient-to-br from-amber-500/80 to-yellow-600/80",
+      "bg-gradient-to-br from-indigo-500/80 to-blue-600/80",
+      "bg-gradient-to-br from-cyan-500/80 to-sky-600/80",
+      "bg-gradient-to-br from-violet-500/80 to-purple-600/80",
+    ];
+    return gradients[index % gradients.length];
   };
 
   const handleSeeMore = (type: "recent" | "popular" | "favorites") => {
@@ -179,6 +222,7 @@ const Home = () => {
               <Search className="w-5 h-5" />
               Pesquisar
             </Button>
+            {user?.Email && <NotificationBell userEmail={user.Email} />}
             <Button
               variant="ghost"
               size="lg"
@@ -198,6 +242,27 @@ const Home = () => {
         <section className="mb-12">
           <BannerCarousel banners={banners} onBannerClick={handleBannerClick} />
         </section>
+
+        {/* Categories */}
+        {categories.length > 0 && (
+          <section className="px-6 mb-12 animate-slide-up">
+            <div className="flex items-center gap-3 mb-6">
+              <Film className="w-6 h-6 text-primary" />
+              <h2 className="text-2xl font-bold text-foreground">Categorias</h2>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+              {categories.map((category, index) => (
+                <CategoryCard
+                  key={category.id}
+                  name={category.Nome}
+                  icon={getCategoryIcon(category.Nome)}
+                  gradient={getCategoryGradient(index)}
+                  onClick={() => handleCategoryClick(category.Nome)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Continue Watching */}
         {continueWatching.length > 0 && (
