@@ -10,6 +10,7 @@ interface AuthContextType {
   checkSubscription: () => boolean;
   checkDeviceConnected: () => boolean;
   getDaysRemaining: () => number | null;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -20,18 +21,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [deviceInfo] = useState<DeviceInfo>(getCurrentDeviceIMEI());
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem("streamtv_user");
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setUser(parsed);
-      } catch {
-        localStorage.removeItem("streamtv_user");
+    // Check for stored user session and refresh data
+    const initializeUser = async () => {
+      const storedUser = localStorage.getItem("streamtv_user");
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          setUser(parsed);
+          
+          // Refresh user data from API
+          const freshUser = await userApi.getById(parsed.id);
+          if (freshUser) {
+            setUser(freshUser);
+            localStorage.setItem("streamtv_user", JSON.stringify(freshUser));
+          }
+        } catch {
+          localStorage.removeItem("streamtv_user");
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+    
+    initializeUser();
   }, []);
+
+  const refreshUser = async (): Promise<void> => {
+    if (!user) return;
+    
+    try {
+      const freshUser = await userApi.getById(user.id);
+      if (freshUser) {
+        setUser(freshUser);
+        localStorage.setItem("streamtv_user", JSON.stringify(freshUser));
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -150,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkSubscription,
         checkDeviceConnected,
         getDaysRemaining,
+        refreshUser,
       }}
     >
       {children}
