@@ -48,9 +48,13 @@ const Player = () => {
   const [isBuffering, setIsBuffering] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [showChannelList, setShowChannelList] = useState(false);
+
+  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -202,6 +206,14 @@ const Player = () => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
+    }
+  };
+
+  const changePlaybackSpeed = (speed: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+      setPlaybackSpeed(speed);
+      setShowSpeedMenu(false);
     }
   };
 
@@ -477,6 +489,32 @@ const Player = () => {
                   <Volume2 className="w-6 h-6" />
                 )}
               </Button>
+
+              {/* Playback Speed */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  className="tv-focus text-sm font-medium min-w-[50px]"
+                >
+                  {playbackSpeed}x
+                </Button>
+                {showSpeedMenu && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur border border-border rounded-lg shadow-lg overflow-hidden">
+                    {speedOptions.map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => changePlaybackSpeed(speed)}
+                        className={`block w-full px-4 py-2 text-sm hover:bg-accent transition-colors ${
+                          playbackSpeed === speed ? "bg-primary text-primary-foreground" : "text-foreground"
+                        }`}
+                      >
+                        {speed}x
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
