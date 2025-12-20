@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 
 // Proxy URL for HTTP content
-const PROXY_URL = `https://zpnxudnmtkgktzzrafyo.supabase.co/functions/v1/video-proxy`;
+const PROXY_URL = "https://api-baserow.vercel.app/api/baserow";
+const BASEROW_TOKEN = "x3JhLgiECULSREjT6yt54FohKeKbUiSF";
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -176,7 +177,8 @@ const Player = () => {
     
     // If the source is HTTP, use the proxy
     if (sourceUrl && sourceUrl.startsWith("http://")) {
-      return `${PROXY_URL}?url=${encodeURIComponent(sourceUrl)}`;
+      const encodedUrl = encodeURIComponent(sourceUrl);
+      return `${PROXY_URL}?token=${BASEROW_TOKEN}&url=${encodedUrl}&method=GET`;
     }
     
     return sourceUrl;
