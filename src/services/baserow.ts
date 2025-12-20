@@ -265,13 +265,31 @@ export const contentApi = {
       groups: [],
     });
     
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { filters });
+    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { 
+      filters,
+      order_by: "-Data",
+    });
     return response.results;
   },
-  
-  async incrementViews(id: number, currentViews: number | string): Promise<void> {
-    const views = typeof currentViews === 'string' ? parseInt(currentViews, 10) || 0 : currentViews;
-    await updateRow(TABLES.CONTENTS, id, { Views: views + 1 });
+
+  async getRecentByType(type: string, limit = 10): Promise<Content[]> {
+    const filters = JSON.stringify({
+      filter_type: "AND",
+      filters: [{ type: "equal", field: "Tipo", value: type }],
+      groups: [],
+    });
+    
+    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { 
+      filters,
+      order_by: "-Data",
+      size: limit.toString(),
+    });
+    return response.results;
+  },
+
+  async incrementViews(id: number, currentViews: number): Promise<void> {
+    const newViews = currentViews + 1;
+    await updateRow(TABLES.CONTENTS, id, { Views: newViews });
   },
   
   async getAll(orderBy = "-Data"): Promise<Content[]> {

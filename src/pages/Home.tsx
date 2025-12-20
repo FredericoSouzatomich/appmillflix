@@ -6,7 +6,7 @@ import { playbackStorage, PlaybackProgress } from "@/services/playbackStorage";
 import { Button } from "@/components/ui/button";
 import { 
   ChevronRight, Search, Tv2, Clock, TrendingUp, Heart, PlayCircle, User,
-  Sword, Drama, Laugh, Ghost, Heart as HeartIcon, Rocket, Users, Sparkles, Film
+  Sword, Drama, Laugh, Ghost, Heart as HeartIcon, Rocket, Users, Sparkles, Film, Tv
 } from "lucide-react";
 import ContentCard from "@/components/ContentCard";
 import BannerCarousel from "@/components/BannerCarousel";
@@ -20,6 +20,8 @@ const Home = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [recentContent, setRecentContent] = useState<Content[]>([]);
   const [popularContent, setPopularContent] = useState<Content[]>([]);
+  const [recentMovies, setRecentMovies] = useState<Content[]>([]);
+  const [recentSeries, setRecentSeries] = useState<Content[]>([]);
   const [favorites, setFavorites] = useState<Content[]>([]);
   const [continueWatching, setContinueWatching] = useState<PlaybackProgress[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -55,18 +57,22 @@ const Home = () => {
       const continueData = playbackStorage.getContinueWatching();
       setContinueWatching(continueData);
       
-      const [bannersData, recentData, popularData, favoritesData, categoriesData] = await Promise.all([
+      const [bannersData, recentData, popularData, favoritesData, categoriesData, moviesData, seriesData] = await Promise.all([
         bannerApi.getAll(),
         contentApi.getRecent(10),
         contentApi.getMostWatched(10),
         user?.Email ? contentApi.getFavorites(user.Email) : Promise.resolve([]),
         categoryApi.getAll(),
+        contentApi.getRecentByType("Filme", 10),
+        contentApi.getRecentByType("Serie", 10),
       ]);
       setBanners(bannersData);
       setRecentContent(recentData);
       setPopularContent(popularData);
       setFavorites(favoritesData.slice(0, 10));
       setCategories(categoriesData);
+      setRecentMovies(moviesData);
+      setRecentSeries(seriesData);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -121,9 +127,13 @@ const Home = () => {
     return gradients[index % gradients.length];
   };
 
-  const handleSeeMore = (type: "recent" | "popular" | "favorites") => {
+  const handleSeeMore = (type: "recent" | "popular" | "favorites" | "movies" | "series") => {
     if (type === "favorites") {
       navigate("/favorites");
+    } else if (type === "movies") {
+      navigate("/browse?type=Filme&sort=-Data");
+    } else if (type === "series") {
+      navigate("/browse?type=Serie&sort=-Data");
     } else {
       navigate(`/browse?sort=${type === "recent" ? "-Data" : "-Views"}`);
     }
@@ -344,7 +354,7 @@ const Home = () => {
         </section>
 
         {/* Popular Content */}
-        <section className="px-6 mb-12 animate-slide-up" style={{ animationDelay: "0.4s" }}>
+        <section className="px-6 mb-12 animate-slide-up" style={{ animationDelay: "0.3s" }}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <TrendingUp className="w-6 h-6 text-primary" />
@@ -371,6 +381,68 @@ const Home = () => {
             ))}
           </div>
         </section>
+
+        {/* Movies */}
+        {recentMovies.length > 0 && (
+          <section className="px-6 mb-12 animate-slide-up" style={{ animationDelay: "0.4s" }}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Film className="w-6 h-6 text-primary" />
+                <h2 className="text-2xl font-bold text-foreground">Filmes</h2>
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => handleSeeMore("movies")}
+                className="tv-focus text-muted-foreground hover:text-foreground"
+              >
+                Ver Mais
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+              {recentMovies.map((content) => (
+                <ContentCard
+                  key={content.id}
+                  content={content}
+                  onClick={() => handleContentClick(content)}
+                  isFavorite={contentApi.isFavorite(content.Favoritos, user?.Email || "")}
+                  onToggleFavorite={(e) => handleToggleFavorite(content, e)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Series */}
+        {recentSeries.length > 0 && (
+          <section className="px-6 mb-12 animate-slide-up" style={{ animationDelay: "0.5s" }}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Tv className="w-6 h-6 text-primary" />
+                <h2 className="text-2xl font-bold text-foreground">Séries</h2>
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => handleSeeMore("series")}
+                className="tv-focus text-muted-foreground hover:text-foreground"
+              >
+                Ver Mais
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+              {recentSeries.map((content) => (
+                <ContentCard
+                  key={content.id}
+                  content={content}
+                  onClick={() => handleContentClick(content)}
+                  isFavorite={contentApi.isFavorite(content.Favoritos, user?.Email || "")}
+                  onToggleFavorite={(e) => handleToggleFavorite(content, e)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* User Info Bar */}
