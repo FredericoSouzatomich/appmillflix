@@ -398,6 +398,7 @@ export const episodeApi = {
   },
   
   async incrementViews(id: number, currentViews: number): Promise<void> {
+    const newViews = (Number(currentViews) || 0) + 1;
     await updateRow(TABLES.EPISODES, id, { Views: newViews });
   },
 };
