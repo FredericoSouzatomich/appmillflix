@@ -13,6 +13,7 @@ import BannerCarousel from "@/components/BannerCarousel";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import CategoryCard from "@/components/CategoryCard";
 import NotificationBell from "@/components/NotificationBell";
+import HorizontalScrollList from "@/components/HorizontalScrollList";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Home = () => {
@@ -320,7 +321,7 @@ const Home = () => {
               <Film className="w-6 h-6 text-primary" />
               <h2 className="text-2xl font-bold text-foreground">Categorias</h2>
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <HorizontalScrollList>
               {categories.map((category, index) => (
                 <CategoryCard
                   key={category.id}
@@ -330,7 +331,7 @@ const Home = () => {
                   onClick={() => handleCategoryClick(category.Nome)}
                 />
               ))}
-            </div>
+            </HorizontalScrollList>
           </section>
         )}
 
@@ -341,7 +342,7 @@ const Home = () => {
               <PlayCircle className="w-6 h-6 text-primary" />
               <h2 className="text-2xl font-bold text-foreground">Continuar Assistindo</h2>
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <HorizontalScrollList>
               {continueWatching.map((progress) => (
                 <ContinueWatchingCard
                   key={`${progress.contentId}-${progress.episodeId || 0}`}
@@ -349,7 +350,7 @@ const Home = () => {
                   onClick={() => handleContinueWatchingClick(progress)}
                 />
               ))}
-            </div>
+            </HorizontalScrollList>
           </section>
         )}
 
@@ -370,7 +371,7 @@ const Home = () => {
                 <ChevronRight className="w-5 h-5" />
               </Button>
             </div>
-            <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <HorizontalScrollList>
               {favorites.map((content) => (
                 <ContentCard
                   key={content.id}
@@ -381,7 +382,7 @@ const Home = () => {
                   size="sm"
                 />
               ))}
-            </div>
+            </HorizontalScrollList>
           </section>
         )}
 
@@ -401,7 +402,7 @@ const Home = () => {
               <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
-          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          <HorizontalScrollList>
             {recentContent.map((content) => (
               <ContentCard
                 key={content.id}
@@ -412,7 +413,7 @@ const Home = () => {
                 size="sm"
               />
             ))}
-          </div>
+          </HorizontalScrollList>
         </section>
 
         {/* Popular Content */}
@@ -431,7 +432,7 @@ const Home = () => {
               <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
-          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          <HorizontalScrollList>
             {popularContent.map((content) => (
               <ContentCard
                 key={content.id}
@@ -442,7 +443,7 @@ const Home = () => {
                 size="sm"
               />
             ))}
-          </div>
+          </HorizontalScrollList>
         </section>
 
         {/* Movies */}
@@ -462,7 +463,7 @@ const Home = () => {
                 <ChevronRight className="w-5 h-5" />
               </Button>
             </div>
-            <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <HorizontalScrollList>
               {recentMovies.map((content) => (
                 <ContentCard
                   key={content.id}
@@ -473,7 +474,7 @@ const Home = () => {
                   size="sm"
                 />
               ))}
-            </div>
+            </HorizontalScrollList>
           </section>
         )}
 
@@ -494,7 +495,7 @@ const Home = () => {
                 <ChevronRight className="w-5 h-5" />
               </Button>
             </div>
-            <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <HorizontalScrollList>
               {recentSeries.map((content) => (
                 <ContentCard
                   key={content.id}
@@ -505,7 +506,7 @@ const Home = () => {
                   size="sm"
                 />
               ))}
-            </div>
+            </HorizontalScrollList>
           </section>
         )}
       </main>
