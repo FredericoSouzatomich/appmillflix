@@ -4,6 +4,7 @@ import { Content, Episode, contentApi, episodeApi } from "@/services/baserow";
 import { playbackStorage } from "@/services/playbackStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import Hls from "hls.js";
 import {
   ArrowLeft,
   Play,
@@ -38,6 +39,7 @@ const Player = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressSaveInterval = useRef<NodeJS.Timeout | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   
   const [content, setContent] = useState<Content | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -80,6 +82,11 @@ const Player = () => {
       saveProgress();
       if (progressSaveInterval.current) {
         clearInterval(progressSaveInterval.current);
+      }
+      // Cleanup HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
       }
     };
   }, [id]);
@@ -202,6 +209,73 @@ const Player = () => {
     
     return sourceUrl;
   };
+
+  // HLS Support Effect
+  useEffect(() => {
+    const video = videoRef.current;
+    const source = getVideoSource();
+    
+    if (!video || !source) return;
+    
+    // Cleanup previous HLS instance
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    
+    const isHLS = source.includes('.m3u8');
+    
+    if (isHLS) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        
+        hlsRef.current = hls;
+        hls.loadSource(source);
+        hls.attachMedia(video);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsLoading(false);
+          video.play().catch(() => {});
+        });
+        
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('HLS Error:', data);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                break;
+            }
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (Safari)
+        video.src = source;
+        video.addEventListener('loadedmetadata', () => {
+          video.play().catch(() => {});
+        });
+      }
+    } else {
+      // Regular video source
+      video.src = source;
+    }
+    
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [content, currentEpisode, type]);
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -477,7 +551,6 @@ const Player = () => {
       {/* Video Player */}
       <video
         ref={videoRef}
-        src={getVideoSource()}
         className="w-full h-full object-contain bg-background"
         style={{ filter: `brightness(${brightness})` }}
         onTimeUpdate={() => {
