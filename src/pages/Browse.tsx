@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Content, Category, contentApi, categoryApi } from "@/services/baserow";
+import { Content, contentApi } from "@/services/baserow";
 import { Button } from "@/components/ui/button";
 import ContentCard from "@/components/ContentCard";
 import { ArrowLeft, Clock, TrendingUp, Grid, Loader2, Film, Tv, Filter } from "lucide-react";
@@ -17,24 +17,34 @@ const Browse = () => {
   const typeParam = searchParams.get("type") || "";
 
   const [contents, setContents] = useState<Content[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
   const [selectedType, setSelectedType] = useState<TypeOption>(typeParam as TypeOption);
   const [sortBy, setSortBy] = useState<SortOption>(sortParam as SortOption);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadCategories();
+    loadCategoriesFromContents();
   }, []);
 
   useEffect(() => {
     loadContents();
   }, [selectedCategory, selectedType, sortBy]);
 
-  const loadCategories = async () => {
+  const loadCategoriesFromContents = async () => {
     try {
-      const data = await categoryApi.getAll();
-      setCategories(data);
+      const allContents = await contentApi.getAll();
+      const allCategories = new Set<string>();
+      
+      allContents.forEach((content) => {
+        if (content.Categoria) {
+          // Split by comma and trim each category
+          const cats = content.Categoria.split(",").map((c) => c.trim()).filter(Boolean);
+          cats.forEach((cat) => allCategories.add(cat));
+        }
+      });
+      
+      setCategories(Array.from(allCategories).sort());
     } catch (error) {
       console.error("Error loading categories:", error);
     }
@@ -218,13 +228,13 @@ const Browse = () => {
             </Button>
             {categories.map((category) => (
               <Button
-                key={category.id}
-                variant={selectedCategory === category.Nome ? "default" : "outline"}
+                key={category}
+                variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleCategoryChange(category.Nome)}
+                onClick={() => handleCategoryChange(category)}
                 className="tv-focus"
               >
-                {category.Nome}
+                {category}
               </Button>
             ))}
           </div>
