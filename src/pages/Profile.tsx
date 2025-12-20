@@ -74,19 +74,31 @@ const Profile = () => {
     navigate("/login");
   };
 
-  const parseRestam = (restam: string): { days: number; time: string } => {
-    const match = restam.match(/(\d+)\s*days?\s*([\d:]+)/i);
-    if (match) {
-      return { days: parseInt(match[1], 10), time: match[2] };
-    }
-    return { days: 0, time: restam };
+  const calcularDiasRestantes = (): number => {
+    if (!user?.Restam || !user?.Dias) return 0;
+    
+    // Extract number from Restam field (e.g., "30d 12:00:00" -> 30, or just "30" -> 30)
+    const match = user.Restam.match(/(\d+)/);
+    if (!match) return 0;
+    
+    const restamValue = parseInt(match[1], 10);
+    const diasRestantes = restamValue - user.Dias;
+    
+    return diasRestantes > 0 ? diasRestantes : 0;
+  };
+
+  const parseTimeFromRestam = (restam: string): string => {
+    // Extract time portion if exists (e.g., "30d 12:34:56" -> "12:34:56")
+    const timeMatch = restam.match(/(\d{1,2}:\d{2}(:\d{2})?)/);
+    return timeMatch ? timeMatch[1] : "";
   };
 
   if (!user) {
     return null;
   }
 
-  const { days, time } = parseRestam(user.Restam || "0 days");
+  const diasRestantes = calcularDiasRestantes();
+  const timeRemaining = parseTimeFromRestam(user.Restam || "");
   const isCurrentDevice = (device: DeviceInfo) => 
     device.IMEI === deviceInfo.IMEI || device.Dispositivo === deviceInfo.Dispositivo;
 
@@ -127,19 +139,21 @@ const Profile = () => {
                 <Calendar className="w-5 h-5 text-primary" />
                 <span className="text-sm text-muted-foreground">Dias Restantes</span>
               </div>
-              <p className="text-3xl font-bold text-foreground">{days}</p>
+              <p className="text-3xl font-bold text-foreground">{diasRestantes}</p>
               <p className="text-xs text-muted-foreground">dias</p>
             </div>
 
             {/* Time Remaining */}
-            <div className="bg-secondary/50 rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <Clock className="w-5 h-5 text-primary" />
-                <span className="text-sm text-muted-foreground">Tempo</span>
+            {timeRemaining && (
+              <div className="bg-secondary/50 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  <span className="text-sm text-muted-foreground">Tempo</span>
+                </div>
+                <p className="text-xl font-bold text-foreground">{timeRemaining}</p>
+                <p className="text-xs text-muted-foreground">restante</p>
               </div>
-              <p className="text-xl font-bold text-foreground">{time}</p>
-              <p className="text-xs text-muted-foreground">restante</p>
-            </div>
+            )}
 
             {/* Device Limit */}
             <div className="bg-secondary/50 rounded-xl p-4">
