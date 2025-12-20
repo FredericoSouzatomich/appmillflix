@@ -17,6 +17,7 @@ import {
   X,
   ChevronRight,
   Loader2,
+  Sun,
 } from "lucide-react";
 
 // Proxy URL for HTTP content
@@ -54,12 +55,20 @@ const Player = () => {
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [showChannelList, setShowChannelList] = useState(false);
   const [doubleTapSide, setDoubleTapSide] = useState<'left' | 'right' | null>(null);
+  const [volume, setVolume] = useState(1);
+  const [brightness, setBrightness] = useState(1);
+  const [showVolumeIndicator, setShowVolumeIndicator] = useState(false);
+  const [showBrightnessIndicator, setShowBrightnessIndicator] = useState(false);
+  const [swipeActive, setSwipeActive] = useState<'volume' | 'brightness' | null>(null);
 
   const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
   const doubleTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const volumeIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const brightnessIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -361,6 +370,79 @@ const Player = () => {
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!touchStartRef.current) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Only activate vertical swipe if movement is more vertical than horizontal
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 20) {
+      const isRightSide = touchStartRef.current.x > screenWidth / 2;
+      
+      // Calculate change based on swipe distance (full screen height = 100% change)
+      const changePercent = -deltaY / (screenHeight * 0.5);
+      
+      if (isRightSide) {
+        // Volume control on right side
+        const newVolume = Math.max(0, Math.min(1, volume + changePercent * 0.1));
+        if (videoRef.current) {
+          videoRef.current.volume = newVolume;
+          setVolume(newVolume);
+          setIsMuted(newVolume === 0);
+        }
+        setSwipeActive('volume');
+        setShowVolumeIndicator(true);
+        
+        if (volumeIndicatorTimeoutRef.current) {
+          clearTimeout(volumeIndicatorTimeoutRef.current);
+        }
+      } else {
+        // Brightness control on left side
+        const newBrightness = Math.max(0.2, Math.min(1, brightness + changePercent * 0.1));
+        setBrightness(newBrightness);
+        setSwipeActive('brightness');
+        setShowBrightnessIndicator(true);
+        
+        if (brightnessIndicatorTimeoutRef.current) {
+          clearTimeout(brightnessIndicatorTimeoutRef.current);
+        }
+      }
+      
+      // Update touch start for continuous tracking
+      touchStartRef.current = {
+        ...touchStartRef.current,
+        y: touch.clientY
+      };
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    setSwipeActive(null);
+    
+    // Hide indicators after delay
+    volumeIndicatorTimeoutRef.current = setTimeout(() => {
+      setShowVolumeIndicator(false);
+    }, 1000);
+    
+    brightnessIndicatorTimeoutRef.current = setTimeout(() => {
+      setShowBrightnessIndicator(false);
+    }, 1000);
+  };
+
   const handleBack = () => {
     saveProgress();
     navigate(-1);
@@ -385,13 +467,19 @@ const Player = () => {
       ref={containerRef}
       className="fixed inset-0 bg-background z-50"
       onMouseMove={handleMouseMove}
-      onTouchStart={handleDoubleTap}
+      onTouchStart={(e) => {
+        handleDoubleTap(e);
+        handleTouchStart(e);
+      }}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Video Player */}
       <video
         ref={videoRef}
         src={getVideoSource()}
         className="w-full h-full object-contain bg-background"
+        style={{ filter: `brightness(${brightness})` }}
         onTimeUpdate={() => {
           handleTimeUpdate();
           // If video is playing and time is updating, it's not buffering
@@ -458,6 +546,42 @@ const Player = () => {
               <SkipForward className="w-8 h-8 text-foreground" />
             )}
             <span className="text-foreground text-sm font-medium">10s</span>
+          </div>
+        </div>
+      )}
+
+      {/* Volume Indicator */}
+      {showVolumeIndicator && (
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none z-20">
+          <div className="bg-background/80 backdrop-blur-sm rounded-lg p-3 flex flex-col items-center gap-2">
+            {volume === 0 ? (
+              <VolumeX className="w-6 h-6 text-foreground" />
+            ) : (
+              <Volume2 className="w-6 h-6 text-foreground" />
+            )}
+            <div className="w-1 h-24 bg-muted rounded-full overflow-hidden rotate-180">
+              <div 
+                className="w-full bg-primary transition-all duration-100 rounded-full"
+                style={{ height: `${volume * 100}%` }}
+              />
+            </div>
+            <span className="text-foreground text-xs font-medium">{Math.round(volume * 100)}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* Brightness Indicator */}
+      {showBrightnessIndicator && (
+        <div className="absolute left-8 top-1/2 -translate-y-1/2 pointer-events-none z-20">
+          <div className="bg-background/80 backdrop-blur-sm rounded-lg p-3 flex flex-col items-center gap-2">
+            <Sun className="w-6 h-6 text-foreground" />
+            <div className="w-1 h-24 bg-muted rounded-full overflow-hidden rotate-180">
+              <div 
+                className="w-full bg-primary transition-all duration-100 rounded-full"
+                style={{ height: `${brightness * 100}%` }}
+              />
+            </div>
+            <span className="text-foreground text-xs font-medium">{Math.round(brightness * 100)}%</span>
           </div>
         </div>
       )}
