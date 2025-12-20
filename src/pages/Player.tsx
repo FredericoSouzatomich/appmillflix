@@ -19,8 +19,7 @@ import {
 } from "lucide-react";
 
 // Proxy URL for HTTP content
-const PROXY_URL = "https://api-baserow.vercel.app/api/proxy";
-const PROXY_KEY = "IyusyTzNhDZDtZFi7jj72CIV3sIEZu6rcLR3xgvBbxJ";
+const PROXY_URL = "https://proxy.tcavalcanti93.workers.dev/";
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -178,7 +177,7 @@ const Player = () => {
     // If the source is HTTP, use the proxy
     if (sourceUrl && sourceUrl.startsWith("http://")) {
       const encodedUrl = encodeURIComponent(sourceUrl);
-      return `${PROXY_URL}?key=${PROXY_KEY}&url=${encodedUrl}`;
+      return `${PROXY_URL}?url=${encodedUrl}`;
     }
     
     return sourceUrl;
