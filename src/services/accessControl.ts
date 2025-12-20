@@ -1,5 +1,5 @@
 // Access Control Service - Verifica se o app está ativo via proxy
-const PROXY_URL = "https://api-anyflix.vercel.app/api/token";
+const PROXY_URL = "https://api-anyflix.vercel.app/api/check";
 
 // UUID de acesso - pode ser alterado aqui
 let ACCESS_UUID = "5f5641dd-0d9a-4b1a-bbbd-383dabaaf70e";
