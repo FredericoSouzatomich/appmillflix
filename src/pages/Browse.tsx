@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Content, contentApi } from "@/services/baserow";
 import { Button } from "@/components/ui/button";
 import ContentCard from "@/components/ContentCard";
-import { ArrowLeft, Clock, TrendingUp, Grid, Loader2, Film, Tv, Filter } from "lucide-react";
+import { ArrowLeft, Clock, TrendingUp, Grid, Loader2, Film, Tv, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 
 type SortOption = "-Data" | "-Views";
 type TypeOption = "" | "Filme" | "Serie";
+
+const ITEMS_PER_PAGE = 24;
 
 const Browse = () => {
   const navigate = useNavigate();
@@ -15,12 +17,14 @@ const Browse = () => {
   const sortParam = searchParams.get("sort") || "-Data";
   const categoryParam = searchParams.get("category") || "";
   const typeParam = searchParams.get("type") || "";
+  const pageParam = parseInt(searchParams.get("page") || "1", 10);
 
   const [contents, setContents] = useState<Content[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
   const [selectedType, setSelectedType] = useState<TypeOption>(typeParam as TypeOption);
   const [sortBy, setSortBy] = useState<SortOption>(sortParam as SortOption);
+  const [currentPage, setCurrentPage] = useState(pageParam);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +33,7 @@ const Browse = () => {
 
   useEffect(() => {
     loadContents();
-  }, [selectedCategory, selectedType, sortBy]);
+  }, [selectedCategory, selectedType, sortBy, currentPage]);
 
   const loadCategoriesFromContents = async () => {
     try {
@@ -38,7 +42,6 @@ const Browse = () => {
       
       allContents.forEach((content) => {
         if (content.Categoria) {
-          // Split by comma and trim each category
           const cats = content.Categoria.split(",").map((c) => c.trim()).filter(Boolean);
           cats.forEach((cat) => allCategories.add(cat));
         }
@@ -59,7 +62,6 @@ const Browse = () => {
         data = await contentApi.getByCategory(selectedCategory, sortBy);
       } else if (selectedType) {
         data = await contentApi.getByType(selectedType);
-        // Sort locally since getByType doesn't support order
         if (sortBy === "-Data") {
           data.sort((a, b) => new Date(b.Data).getTime() - new Date(a.Data).getTime());
         } else {
@@ -69,7 +71,6 @@ const Browse = () => {
         data = await contentApi.getAll(sortBy);
       }
       
-      // Apply type filter if category is selected
       if (selectedCategory && selectedType) {
         data = data.filter((c) => c.Tipo === selectedType);
       }
@@ -82,13 +83,20 @@ const Browse = () => {
     }
   };
 
-  const updateURL = (category: string, type: TypeOption, sort: SortOption) => {
+  const updateURL = (category: string, type: TypeOption, sort: SortOption, page: number = 1) => {
     const params = new URLSearchParams();
     params.set("sort", sort);
     if (category) params.set("category", category);
     if (type) params.set("type", type);
+    if (page > 1) params.set("page", page.toString());
     navigate(`/browse?${params.toString()}`);
   };
+
+  const totalPages = Math.ceil(contents.length / ITEMS_PER_PAGE);
+  const paginatedContents = contents.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleContentClick = (content: Content) => {
     navigate(`/content/${content.id}`);
@@ -96,17 +104,26 @@ const Browse = () => {
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
-    updateURL(category, selectedType, sortBy);
+    setCurrentPage(1);
+    updateURL(category, selectedType, sortBy, 1);
   };
 
   const handleTypeChange = (type: TypeOption) => {
     setSelectedType(type);
-    updateURL(selectedCategory, type, sortBy);
+    setCurrentPage(1);
+    updateURL(selectedCategory, type, sortBy, 1);
   };
 
   const handleSortChange = (newSort: SortOption) => {
     setSortBy(newSort);
-    updateURL(selectedCategory, selectedType, newSort);
+    setCurrentPage(1);
+    updateURL(selectedCategory, selectedType, newSort, 1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    updateURL(selectedCategory, selectedType, sortBy, page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getTitle = () => {
@@ -215,28 +232,30 @@ const Browse = () => {
             </div>
           </div>
 
-          {/* Category Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-muted-foreground text-sm">Categoria:</span>
-            <Button
-              variant={!selectedCategory ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleCategoryChange("")}
-              className="tv-focus"
-            >
-              Todas
-            </Button>
-            {categories.map((category) => (
+          {/* Category Buttons with horizontal scroll */}
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm shrink-0">Categoria:</span>
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
               <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
+                variant={!selectedCategory ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleCategoryChange(category)}
-                className="tv-focus"
+                onClick={() => handleCategoryChange("")}
+                className="tv-focus shrink-0"
               >
-                {category}
+                Todas
               </Button>
-            ))}
+              {categories.map((category) => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleCategoryChange(category)}
+                  className="tv-focus shrink-0"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -255,16 +274,72 @@ const Browse = () => {
               <p className="text-muted-foreground">Carregando...</p>
             </div>
           </div>
-        ) : contents.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
-            {contents.map((content) => (
-              <ContentCard
-                key={content.id}
-                content={content}
-                onClick={() => handleContentClick(content)}
-              />
-            ))}
-          </div>
+        ) : paginatedContents.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+              {paginatedContents.map((content) => (
+                <ContentCard
+                  key={content.id}
+                  content={content}
+                  onClick={() => handleContentClick(content)}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="tv-focus"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 1
+                      );
+                    })
+                    .map((page, index, arr) => {
+                      const showEllipsisBefore = index > 0 && page - arr[index - 1] > 1;
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsisBefore && (
+                            <span className="px-2 text-muted-foreground">...</span>
+                          )}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(page)}
+                            className="tv-focus min-w-[40px]"
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="tv-focus"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">
@@ -276,7 +351,8 @@ const Browse = () => {
               onClick={() => {
                 setSelectedCategory("");
                 setSelectedType("");
-                updateURL("", "", sortBy);
+                setCurrentPage(1);
+                updateURL("", "", sortBy, 1);
               }}
             >
               Limpar filtros
