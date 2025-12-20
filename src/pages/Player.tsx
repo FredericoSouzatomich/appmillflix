@@ -53,10 +53,13 @@ const Player = () => {
   const [showControls, setShowControls] = useState(true);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [showChannelList, setShowChannelList] = useState(false);
+  const [doubleTapSide, setDoubleTapSide] = useState<'left' | 'right' | null>(null);
 
   const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
+  const doubleTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -313,6 +316,51 @@ const Player = () => {
     }, 3000);
   };
 
+  const handleDoubleTap = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0] || e.changedTouches[0];
+    const currentTime = Date.now();
+    const tapX = touch.clientX;
+    const screenWidth = window.innerWidth;
+    
+    const timeDiff = currentTime - lastTapRef.current.time;
+    const xDiff = Math.abs(tapX - lastTapRef.current.x);
+    
+    // Double tap detected (within 300ms and 50px)
+    if (timeDiff < 300 && xDiff < 50) {
+      e.preventDefault();
+      
+      if (doubleTapTimeoutRef.current) {
+        clearTimeout(doubleTapTimeoutRef.current);
+      }
+      
+      const isLeftSide = tapX < screenWidth / 2;
+      
+      if (videoRef.current) {
+        if (isLeftSide) {
+          // Rewind 10 seconds
+          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+          setDoubleTapSide('left');
+        } else {
+          // Forward 10 seconds
+          videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10);
+          setDoubleTapSide('right');
+        }
+        
+        // Hide feedback after animation
+        setTimeout(() => setDoubleTapSide(null), 500);
+      }
+      
+      lastTapRef.current = { time: 0, x: 0 };
+    } else {
+      lastTapRef.current = { time: currentTime, x: tapX };
+      
+      // Single tap - toggle controls after short delay
+      doubleTapTimeoutRef.current = setTimeout(() => {
+        handleMouseMove();
+      }, 300);
+    }
+  };
+
   const handleBack = () => {
     saveProgress();
     navigate(-1);
@@ -337,6 +385,7 @@ const Player = () => {
       ref={containerRef}
       className="fixed inset-0 bg-background z-50"
       onMouseMove={handleMouseMove}
+      onTouchStart={handleDoubleTap}
     >
       {/* Video Player */}
       <video
@@ -391,6 +440,24 @@ const Player = () => {
             <span className="text-foreground text-sm">
               {isLoading ? "Carregando..." : "Buffering..."}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Double Tap Feedback */}
+      {doubleTapSide && (
+        <div 
+          className={`absolute top-1/2 -translate-y-1/2 pointer-events-none z-20 animate-pulse ${
+            doubleTapSide === 'left' ? 'left-1/4' : 'right-1/4'
+          }`}
+        >
+          <div className="bg-background/70 backdrop-blur-sm rounded-full p-4 flex flex-col items-center gap-1">
+            {doubleTapSide === 'left' ? (
+              <SkipBack className="w-8 h-8 text-foreground" />
+            ) : (
+              <SkipForward className="w-8 h-8 text-foreground" />
+            )}
+            <span className="text-foreground text-sm font-medium">10s</span>
           </div>
         </div>
       )}
