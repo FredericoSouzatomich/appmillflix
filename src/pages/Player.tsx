@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Content, Episode, contentApi, episodeApi } from "@/services/baserow";
 import { playbackStorage } from "@/services/playbackStorage";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -24,6 +25,8 @@ const Player = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const hasAddedToHistory = useRef(false);
 
   const type = searchParams.get("type") || "Filme";
   const season = parseInt(searchParams.get("season") || "1", 10);
@@ -140,9 +143,15 @@ const Player = () => {
     const data = await contentApi.getById(contentId);
     setContent(data);
     
-    // Increment views
+    // Increment views and add to history
     if (data) {
       await contentApi.incrementViews(data.id, data.Views || 0);
+      
+      // Add to Baserow history (only once per session)
+      if (user?.Email && !hasAddedToHistory.current && type !== "TV") {
+        hasAddedToHistory.current = true;
+        await contentApi.addToHistory(data.id, data.Histórico, user.Email);
+      }
     }
   };
 

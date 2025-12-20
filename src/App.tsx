@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Browse from "./pages/Browse";
 import Favorites from "./pages/Favorites";
+import Profile from "./pages/Profile";
 import ContentDetail from "./pages/ContentDetail";
 import Player from "./pages/Player";
 import NotFound from "./pages/NotFound";
@@ -67,6 +68,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Browse />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         }
       />

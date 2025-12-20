@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Banner, Content, bannerApi, contentApi } from "@/services/baserow";
 import { playbackStorage, PlaybackProgress } from "@/services/playbackStorage";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Search, LogOut, Tv2, Clock, TrendingUp, Heart, PlayCircle } from "lucide-react";
+import { ChevronRight, Search, Tv2, Clock, TrendingUp, Heart, PlayCircle, User } from "lucide-react";
 import ContentCard from "@/components/ContentCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
@@ -182,11 +182,11 @@ const Home = () => {
             <Button
               variant="ghost"
               size="lg"
-              onClick={handleLogout}
-              className="tv-focus text-muted-foreground hover:text-destructive"
+              onClick={() => navigate("/profile")}
+              className="tv-focus"
             >
-              <LogOut className="w-5 h-5" />
-              Sair
+              <User className="w-5 h-5" />
+              Perfil
             </Button>
           </nav>
         </div>
