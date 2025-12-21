@@ -1,9 +1,11 @@
-// Baserow API Types and Service
+// --- Configurações Principais ---
 
-const API_URL = "https://api.baserow.io/api";
+// Se mudar para http://, o script usará automaticamente o proxy da Vercel
+const API_URL = "https://api.baserow.io/api"; 
 const TOKEN = "token_baserow";
+const PROXY_URL = "https://api-anyflix.vercel.app/api/baserow";
 
-// Table IDs
+// IDs das Tabelas
 const TABLES = {
   CONTENTS: 106744,
   EPISODES: 106745,
@@ -12,7 +14,8 @@ const TABLES = {
   CATEGORIES: 224166,
 };
 
-// Types
+// --- Interfaces de Tipos ---
+
 export interface User {
   id: number;
   order: string;
@@ -67,6 +70,7 @@ export interface Episode {
   Temporada: number;
   "Episódio": number;
   Histórico: string;
+  Views: number;
 }
 
 export interface Category {
@@ -87,97 +91,101 @@ interface BaserowResponse<T> {
   results: T[];
 }
 
-// API Headers
-const getHeaders = () => ({
-  Authorization: `Token ${TOKEN}`,
-  "Content-Type": "application/json",
-});
+// --- Motor de Requisições (Lógica do Proxy) ---
 
-// Generic fetch function
+/**
+ * Decide se deve usar o proxy baseado no protocolo da URL
+ */
+function useProxy(url: string): boolean {
+  return url.startsWith("http://") && !url.startsWith("https://");
+}
+
+/**
+ * Função central que gerencia CORS e Proxy
+ */
+async function performRequest<T>(fullUrl: string, method: string = "GET", body?: any): Promise<T> {
+  let fetchUrl: string;
+  let fetchOptions: RequestInit;
+
+  if (useProxy(API_URL)) {
+    // Configuração para uso do Proxy na Vercel
+    const encodedUrl = encodeURIComponent(fullUrl);
+    fetchUrl = `${PROXY_URL}?token=${TOKEN}&url=${encodedUrl}&method=${method}`;
+    
+    fetchOptions = {
+      method: "POST", // O proxy geralmente recebe os dados via POST para repassar
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    };
+  } else {
+    // Configuração para conexão direta (HTTPS)
+    fetchUrl = fullUrl;
+    fetchOptions = {
+      method: method,
+      headers: {
+        Authorization: `Token ${TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    };
+  }
+
+  const response = await fetch(fetchUrl, fetchOptions);
+  
+  if (!response.ok) {
+    throw new Error(`Baserow API error: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// --- Funções Auxiliares Genéricas ---
+
 async function fetchFromBaserow<T>(
   tableId: number,
   params: Record<string, string> = {}
 ): Promise<BaserowResponse<T>> {
   const queryParams = new URLSearchParams(params);
   const url = `${API_URL}/database/rows/table/${tableId}/?user_field_names=true&${queryParams}`;
-  
-  const response = await fetch(url, {
-    headers: getHeaders(),
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Baserow API error: ${response.status}`);
-  }
-  
-  return response.json();
+  return performRequest<BaserowResponse<T>>(url, "GET");
 }
 
-// Update row function
 async function updateRow<T>(
   tableId: number,
   rowId: number,
   data: Partial<T>
 ): Promise<T> {
   const url = `${API_URL}/database/rows/table/${tableId}/${rowId}/?user_field_names=true`;
-  
-  const response = await fetch(url, {
-    method: "PATCH",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Baserow API error: ${response.status}`);
-  }
-  
-  return response.json();
+  return performRequest<T>(url, "PATCH", data);
 }
 
-// Parse IMEI field to get device array
+// --- Utilitários de IMEI ---
+
 export function parseIMEIField(imeiString: string): DeviceInfo[] {
-  if (!imeiString || imeiString.trim() === "") {
-    return [];
-  }
-  
-  // Match all JSON objects in the string
+  if (!imeiString || imeiString.trim() === "") return [];
   const regex = /\{[^}]+\}/g;
   const matches = imeiString.match(regex);
-  
-  if (!matches) {
-    return [];
-  }
+  if (!matches) return [];
   
   const devices: DeviceInfo[] = [];
   for (const match of matches) {
     try {
       const parsed = JSON.parse(match);
-      if (parsed.IMEI && parsed.Dispositivo) {
-        devices.push(parsed);
-      }
-    } catch {
-      // Skip invalid JSON
-    }
+      if (parsed.IMEI && parsed.Dispositivo) devices.push(parsed);
+    } catch { /* ignore */ }
   }
-  
   return devices;
 }
 
-// Generate current device IMEI
 export function getCurrentDeviceIMEI(): DeviceInfo {
   const userAgent = navigator.userAgent;
   const platform = navigator.platform || "Unknown";
-  
-  // Create a simple device identifier
   const imei = `${platform}:${userAgent.slice(0, 50)}`;
-  const dispositivo = platform;
-  
-  return {
-    IMEI: imei,
-    Dispositivo: dispositivo,
-  };
+  return { IMEI: imei, Dispositivo: platform };
 }
 
-// User API
+// --- APIs Específicas ---
+
 export const userApi = {
   async findByEmail(email: string): Promise<User | null> {
     const filters = JSON.stringify({
@@ -185,7 +193,6 @@ export const userApi = {
       filters: [{ type: "equal", field: "Email", value: email }],
       groups: [],
     });
-    
     const response = await fetchFromBaserow<User>(TABLES.USERS, { filters });
     return response.results[0] || null;
   },
@@ -196,13 +203,14 @@ export const userApi = {
   
   async getById(userId: number): Promise<User | null> {
     const url = `${API_URL}/database/rows/table/${TABLES.USERS}/${userId}/?user_field_names=true`;
-    const response = await fetch(url, { headers: getHeaders() });
-    if (!response.ok) return null;
-    return response.json();
+    try {
+      return await performRequest<User>(url, "GET");
+    } catch {
+      return null;
+    }
   },
 };
 
-// Content API
 export const contentApi = {
   async getRecent(limit = 20): Promise<Content[]> {
     const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, {
@@ -222,9 +230,11 @@ export const contentApi = {
   
   async getById(id: number): Promise<Content | null> {
     const url = `${API_URL}/database/rows/table/${TABLES.CONTENTS}/${id}/?user_field_names=true`;
-    const response = await fetch(url, { headers: getHeaders() });
-    if (!response.ok) return null;
-    return response.json();
+    try {
+      return await performRequest<Content>(url, "GET");
+    } catch {
+      return null;
+    }
   },
   
   async search(query: string, orderBy = "-Data"): Promise<Content[]> {
@@ -236,54 +246,17 @@ export const contentApi = {
       ],
       groups: [],
     });
-    
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, {
-      filters,
-      order_by: orderBy,
-    });
+    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { filters, order_by: orderBy });
     return response.results;
   },
-  
+
   async getByCategory(category: string, orderBy = "-Data"): Promise<Content[]> {
     const filters = JSON.stringify({
       filter_type: "AND",
       filters: [{ type: "contains", field: "Categoria", value: category }],
       groups: [],
     });
-    
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, {
-      filters,
-      order_by: orderBy,
-    });
-    return response.results;
-  },
-  
-  async getByType(type: string): Promise<Content[]> {
-    const filters = JSON.stringify({
-      filter_type: "AND",
-      filters: [{ type: "equal", field: "Tipo", value: type }],
-      groups: [],
-    });
-    
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { 
-      filters,
-      order_by: "-Data",
-    });
-    return response.results;
-  },
-
-  async getRecentByType(type: string, limit = 10): Promise<Content[]> {
-    const filters = JSON.stringify({
-      filter_type: "AND",
-      filters: [{ type: "equal", field: "Tipo", value: type }],
-      groups: [],
-    });
-    
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { 
-      filters,
-      order_by: "-Data",
-      size: limit.toString(),
-    });
+    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { filters, order_by: orderBy });
     return response.results;
   },
 
@@ -291,26 +264,14 @@ export const contentApi = {
     const newViews = (Number(currentViews) || 0) + 1;
     await updateRow(TABLES.CONTENTS, id, { Views: newViews });
   },
-  
-  async getAll(orderBy = "-Data"): Promise<Content[]> {
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, {
-      order_by: orderBy,
-      size: "100",
-    });
-    return response.results;
-  },
-  
+
   async getFavorites(userEmail: string): Promise<Content[]> {
     const filters = JSON.stringify({
       filter_type: "AND",
       filters: [{ type: "contains", field: "Favoritos", value: userEmail }],
       groups: [],
     });
-    
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, {
-      filters,
-      order_by: "-Data",
-    });
+    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { filters, order_by: "-Data" });
     return response.results;
   },
   
@@ -320,65 +281,31 @@ export const contentApi = {
       filters: [{ type: "contains", field: "Histórico", value: userEmail }],
       groups: [],
     });
-    
-    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, {
-      filters,
-      order_by: "-Edição",
-    });
+    const response = await fetchFromBaserow<Content>(TABLES.CONTENTS, { filters, order_by: "-Edição" });
     return response.results;
   },
-  
+
   async addFavorite(id: number, currentFavorites: string | null, userEmail: string): Promise<void> {
     const userEntry = `{"id":"${userEmail}"}`;
     const favorites = currentFavorites || "";
-    
-    // Check if already favorited
-    if (favorites.includes(userEmail)) {
-      return;
-    }
-    
-    const newFavorites = favorites + userEntry;
-    await updateRow(TABLES.CONTENTS, id, { Favoritos: newFavorites });
+    if (favorites.includes(userEmail)) return;
+    await updateRow(TABLES.CONTENTS, id, { Favoritos: favorites + userEntry });
   },
-  
+
   async removeFavorite(id: number, currentFavorites: string | null, userEmail: string): Promise<void> {
     if (!currentFavorites) return;
-    
     const userEntry = `{"id":"${userEmail}"}`;
-    const newFavorites = currentFavorites.replace(userEntry, "");
-    await updateRow(TABLES.CONTENTS, id, { Favoritos: newFavorites });
-  },
-  
-  async addToHistory(id: number, currentHistory: string | null, userEmail: string): Promise<void> {
-    const userEntry = `{"id":"${userEmail}"}`;
-    const history = currentHistory || "";
-    
-    // Check if already in history
-    if (history.includes(userEmail)) {
-      return;
-    }
-    
-    const newHistory = history + userEntry;
-    await updateRow(TABLES.CONTENTS, id, { Histórico: newHistory });
-  },
-  
-  isFavorite(favorites: string | null, userEmail: string): boolean {
-    if (!favorites) return false;
-    return favorites.includes(userEmail);
+    await updateRow(TABLES.CONTENTS, id, { Favoritos: currentFavorites.replace(userEntry, "") });
   },
 };
 
-// Banner API
 export const bannerApi = {
   async getAll(): Promise<Banner[]> {
-    const response = await fetchFromBaserow<Banner>(TABLES.BANNERS, {
-      order_by: "-Data",
-    });
+    const response = await fetchFromBaserow<Banner>(TABLES.BANNERS, { order_by: "-Data" });
     return response.results;
   },
 };
 
-// Episode API
 export const episodeApi = {
   async getByContentAndSeason(nome: string, temporada: number): Promise<Episode[]> {
     const filters = JSON.stringify({
@@ -389,11 +316,7 @@ export const episodeApi = {
       ],
       groups: [],
     });
-    
-    const response = await fetchFromBaserow<Episode>(TABLES.EPISODES, {
-      filters,
-      order_by: "Episódio",
-    });
+    const response = await fetchFromBaserow<Episode>(TABLES.EPISODES, { filters, order_by: "Episódio" });
     return response.results;
   },
   
@@ -403,7 +326,6 @@ export const episodeApi = {
   },
 };
 
-// Category API
 export const categoryApi = {
   async getAll(): Promise<Category[]> {
     const response = await fetchFromBaserow<Category>(TABLES.CATEGORIES, {});
