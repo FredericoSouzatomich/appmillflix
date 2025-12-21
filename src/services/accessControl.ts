@@ -2,7 +2,7 @@
 const PROXY_URL = "https://api-anyflix.vercel.app/api/check";
 
 // UUID de acesso - pode ser alterado aqui
-let ACCESS_UUID = "5f5641dd-0d9a-4b1a-bbbd-383dabaaf70e";
+let ACCESS_UUID = "CHAVE_TOKEN";
 
 export interface AccessResponse {
   uuid: string;
