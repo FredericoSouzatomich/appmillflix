@@ -61,7 +61,10 @@ const Browse = () => {
       let data: Content[];
       
       if (selectedCategory) {
-        data = await contentApi.getByCategory(selectedCategory, sortBy);
+        data = await contentApi.getByCategory(selectedCategory);
+        if (sortBy === "-Views") {
+          data.sort((a, b) => (b.Views || 0) - (a.Views || 0));
+        }
       } else if (selectedType) {
         data = await contentApi.getByType(selectedType);
         if (sortBy === "-Data") {
