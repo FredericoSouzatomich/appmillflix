@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 // Proxy URL for HTTP content
-const PROXY_URL = "https://proxy.tcavalcanti93.workers.dev/";
+const PROXY_URL = "proxyflix.fredericosouza05.workers.dev/";
 const PROXY_KEY = "IyusyTzNhDZDtZFi7jj72CIV3sIEZu6rcLR3xgvBbxJ";
 
 const Player = () => {
